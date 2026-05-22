@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1F3864">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>EHS 抄表 · 員和工業</title>
+<link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22EHS%20%E6%8A%84%E8%A1%A8%22%2C%22short_name%22%3A%22EHS%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%231F3864%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bcharset%3Dutf-8%2C%253Csvg%2520xmlns%253D%2522http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2522%2520viewBox%253D%25220%25200%2520192%2520192%2522%253E%253Crect%2520width%253D%2522192%2522%2520height%253D%2522192%2522%2520rx%253D%252238%2522%2520fill%253D%2522%25231F3864%2522%252F%253E%253Ctext%2520x%253D%252296%2522%2520y%253D%2522120%2522%2520text-anchor%253D%2522middle%2522%2520font-family%253D%2522sans-serif%2522%2520font-size%253D%252272%2522%2520font-weight%253D%2522700%2522%2520fill%253D%2522%2523fff%2522%253EEHS%253C%252Ftext%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;background:#F4F5F7;color:#1A1A1A;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button{font:inherit;cursor:pointer;border:none;background:none;color:inherit;padding:0;-webkit-tap-highlight-color:transparent}
+input,select,textarea{font:inherit}
+
+/* === Layout === */
+#app{max-width:480px;margin:0 auto;min-height:100vh;padding-bottom:env(safe-area-inset-bottom,0)}
+.page{padding:16px;min-height:calc(100vh - 56px)}
+.topbar{position:sticky;top:0;z-index:10;background:#fff;border-bottom:0.5px solid #E0E0E0;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.topbar h1{margin:0;font-size:17px;font-weight:600;flex:1;color:#1F3864}
+.topbar .back{padding:6px 10px;margin-left:-10px;font-size:15px;color:#1F3864}
+.topbar .right{display:flex;gap:6px;align-items:center}
+.statusdot{width:8px;height:8px;border-radius:50%;background:#999}
+.statusdot.ok{background:#52C41A}
+.statusdot.warn{background:#FA8C16}
+.statusdot.err{background:#F5222D}
+
+/* === Cards === */
+.card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.card-title{font-size:13px;color:#666;margin-bottom:8px}
+.card .big{font-size:22px;font-weight:600}
+
+/* === Progress === */
+.progress{height:8px;background:#E8EAED;border-radius:4px;overflow:hidden;margin-top:8px}
+.progress > div{height:100%;background:#1F3864;transition:width 0.3s}
+.progress.done > div{background:#52C41A}
+
+/* === Process Cards === */
+.process-card{display:flex;align-items:center;gap:12px;padding:16px;background:#fff;border-radius:12px;margin-bottom:10px;border:1px solid #EAEAEA;width:100%;text-align:left}
+.process-card .icon{width:44px;height:44px;border-radius:10px;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;color:#1F3864;flex-shrink:0}
+.process-card .info{flex:1;min-width:0}
+.process-card .name{font-size:16px;font-weight:600;margin-bottom:2px}
+.process-card .sub{font-size:12px;color:#888}
+.process-card .arrow{color:#BBB;font-size:18px}
+.process-card.done .icon{background:#E8F5E9;color:#52C41A}
+
+/* === Device List === */
+.device-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff;border-radius:10px;margin-bottom:8px;border:1px solid #EAEAEA;width:100%;text-align:left}
+.device-row.done{background:#FAFAFA;border-color:#E0E0E0}
+.device-row .num{width:24px;height:24px;border-radius:50%;background:#F0F0F0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#888;flex-shrink:0}
+.device-row.done .num{background:#52C41A;color:#fff}
+.device-row .info{flex:1;min-width:0}
+.device-row .line1{font-size:14px;font-weight:600;margin-bottom:2px}
+.device-row .line2{font-size:11px;color:#888}
+.device-row .val{font-size:14px;font-weight:600;text-align:right;min-width:70px}
+.device-row .val.oob{color:#F5222D}
+.device-row .val.empty{color:#BBB;font-weight:400;font-size:12px}
+
+/* === Group header === */
+.group-h{font-size:12px;color:#666;font-weight:600;padding:14px 4px 8px;display:flex;align-items:center;gap:8px}
+.group-h .badge{background:#1F3864;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px}
+
+/* === KEY IN screen === */
+.kin-header{padding:8px 0 16px}
+.kin-code{font-size:12px;color:#888}
+.kin-name{font-size:18px;font-weight:600;margin:2px 0 4px}
+.kin-range{font-size:12px;color:#666}
+.kin-range b{color:#1F3864}
+
+.kin-display{background:#fff;border-radius:14px;padding:24px 16px;text-align:center;margin-bottom:14px;border:1px solid #EAEAEA}
+.kin-display .num{font-size:48px;font-weight:600;line-height:1;letter-spacing:-1px}
+.kin-display .num.empty{color:#CCC}
+.kin-display .num.oob{color:#F5222D}
+.kin-display .unit{font-size:18px;color:#888;font-weight:400;margin-left:6px}
+.kin-display .warn{margin-top:8px;color:#F5222D;font-size:13px}
+.kin-display .ok-msg{margin-top:8px;color:#52C41A;font-size:13px}
+
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.keypad button{height:58px;background:#fff;border:1px solid #DCDCDC;border-radius:12px;font-size:24px;font-weight:500;color:#1A1A1A;transition:transform 0.1s,background 0.1s}
+.keypad button:active{background:#F0F0F0;transform:scale(0.97)}
+.keypad button.fn{background:#F4F5F7;font-size:18px;color:#555}
+.keypad button.same{background:#1F3864;color:#fff;font-size:14px;font-weight:600;grid-column:span 3;height:46px}
+.keypad button.same:disabled{background:#CCC}
+
+.save-btn{width:100%;height:54px;border-radius:12px;background:#1F3864;color:#fff;font-size:16px;font-weight:600;margin-top:8px}
+.save-btn:disabled{background:#CCC}
+.save-btn.skip{background:#fff;color:#1F3864;border:1px solid #1F3864}
+
+/* === OX === */
+.ox-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}
+.ox-btn{height:130px;background:#fff;border:1px solid #DCDCDC;border-radius:14px;font-size:56px;font-weight:300}
+.ox-btn.o{color:#52C41A}
+.ox-btn.x{color:#F5222D}
+.ox-btn:active{background:#F0F0F0}
+.ox-label{text-align:center;font-size:12px;color:#666;margin-top:6px}
+
+/* === Toast === */
+.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#1A1A1A;color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:100;animation:slideIn 0.2s;display:flex;align-items:center;gap:10px;max-width:90%}
+.toast.success{background:#52C41A}
+.toast.error{background:#F5222D}
+.toast button{color:#fff;font-size:12px;text-decoration:underline}
+@keyframes slideIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translateX(-50%)}}
+
+/* === Settings === */
+.setting-row{padding:12px 0;border-bottom:1px solid #EEE;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.setting-row .lbl{flex:1;font-size:14px}
+.setting-row input,.setting-row select{padding:8px 10px;border:1px solid #DDD;border-radius:8px;font-size:14px;width:140px}
+
+/* === Confirm panel === */
+.confirm-list{max-height:55vh;overflow-y:auto;background:#fff;border-radius:10px;padding:8px 0;margin-bottom:14px}
+.confirm-item{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid #F0F0F0;font-size:13px}
+.confirm-item:last-child{border-bottom:none}
+.confirm-item .v{font-weight:600}
+.confirm-item .v.oob{color:#F5222D}
+
+/* === Alert banner === */
+.alert{background:#FFF4E5;border:1px solid #FFD591;color:#AD4E00;padding:12px 14px;border-radius:10px;margin-bottom:12px;font-size:13px;line-height:1.6}
+.alert.danger{background:#FFF1F0;border-color:#FFCCC7;color:#820014}
+.alert.info{background:#E6F4FF;border-color:#91CAFF;color:#003A8C}
+
+/* === Date selector === */
+.date-pill{display:inline-flex;align-items:center;gap:6px;background:#EEF2F8;color:#1F3864;padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+
+/* === Empty === */
+.empty{padding:40px 20px;text-align:center;color:#999;font-size:13px}
+
+/* === Spinner === */
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-right-color:transparent;border-radius:50%;animation:spin 0.7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* === Tabs (歷史頁) === */
+.month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.month-grid button{padding:10px 0;background:#fff;border:1px solid #EAEAEA;border-radius:8px;font-size:13px}
+.month-grid button.active{background:#1F3864;color:#fff;border-color:#1F3864}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="topbar" class="topbar">
+    <button class="back" id="back-btn" style="display:none">‹ 返回</button>
+    <h1 id="page-title">EHS 抄表</h1>
+    <div class="right">
+      <span class="statusdot" id="net-dot" title="連線狀態"></span>
+    </div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container" style="position:fixed;top:0;left:0;right:0;pointer-events:none;z-index:1000"></div>
+
+<script>
+'use strict';
+// =========================================================================
+// EHS 抄表 PWA - 單檔骨架
+// 後端：Google Apps Script Web App
+// 儲存：IndexedDB（暫存今日）+ localStorage（設定）
+// =========================================================================
+
+// ============================================================
+// 設定 / 全域狀態
+// ============================================================
+const APP_VERSION = '1.0.0';
+const LS = {
+  GAS_URL: 'ehs.gas_url',
+  CONFIG: 'ehs.config_cache',
+  CONFIG_TIME: 'ehs.config_time',
+};
+
+let state = {
+  page: 'home',          // home / list / input / ox / confirm / settings / history / setup
+  config: null,           // { system, devices: [] }
+  process: null,          // 當前選的製程
+  groupKey: null,         // 當前選的設備分類
+  itemIdx: 0,
+  buffer: '',
+  date: todayStr(),       // 抄表日期（可改）
+  readings: {},           // { 'A201||集塵器壓降': 32, ... } 暫存當日
+  yesterday: {},          // 昨日資料快取（給「同昨日」用）
+  online: navigator.onLine,
+  alerts: [],             // 最近超標項目
+};
+
+
+// ============================================================
+// 工具函式
+// ============================================================
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+}
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function $(id) { return document.getElementById(id); }
+function fmt(v, format) {
+  if (v === null || v === undefined || v === '') return '';
+  if (format === '小數2位') return Number(v).toFixed(2);
+  if (format === '小數1位') return Number(v).toFixed(1);
+  return String(Math.round(Number(v)));
+}
+function key(code, metric) { return code + '||' + metric; }
+
+// 顯示 toast
+function toast(msg, type, ms) {
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.style.pointerEvents = 'auto';
+  el.innerHTML = msg;
+  $('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), ms || 2500);
+  return el;
+}
+
+
+// ============================================================
+// IndexedDB — 暫存今日抄表
+// ============================================================
+const DB_NAME = 'ehs_db';
+const DB_VER = 1;
+const STORE_READINGS = 'readings';  // 今日暫存
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_READINGS)) {
+        db.createObjectStore(STORE_READINGS, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveReading(code, metric, value, date) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_READINGS, 'readwrite');
+    tx.objectStore(STORE_READINGS).put({
+      id: date + '||' + code + '||' + metric,
+      date, code, metric, value, time: Date.now()
+    });
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function loadTodayReadings(date) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_READINGS, 'readonly');
+    const req = tx.objectStore(STORE_READINGS).getAll();
+    req.onsuccess = () => {
+      const out = {};
+      req.result.forEach(r => {
+        if (r.date === date && Date.now() - r.time < 24 * 3600 * 1000) {
+          out[key(r.code, r.metric)] = r.value;
+        }
+      });
+      resolve(out);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function clearReadings(date) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_READINGS, 'readwrite');
+    const store = tx.objectStore(STORE_READINGS);
+    const req = store.getAllKeys();
+    req.onsuccess = () => {
+      req.result.forEach(k => {
+        if (String(k).startsWith(date + '||')) store.delete(k);
+      });
+    };
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+
+// ============================================================
+// 後端 API
+// ============================================================
+function getGasUrl() {
+  return localStorage.getItem(LS.GAS_URL) || '';
+}
+
+async function apiGet(action, params) {
+  const url = getGasUrl();
+  if (!url) throw new Error('尚未設定 GAS URL，請到設定頁填入');
+  const u = new URL(url);
+  u.searchParams.set('action', action);
+  Object.keys(params || {}).forEach(k => u.searchParams.set(k, params[k]));
+  const r = await fetch(u.toString(), { method: 'GET', redirect: 'follow' });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (!j.success) throw new Error(j.error || 'GAS error');
+  return j.data;
+}
+
+async function apiPost(action, body) {
+  const url = getGasUrl();
+  if (!url) throw new Error('尚未設定 GAS URL，請到設定頁填入');
+  const r = await fetch(url, {
+    method: 'POST',
+    redirect: 'follow',
+    body: JSON.stringify(Object.assign({ action }, body)),
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (!j.success) throw new Error(j.error || 'GAS error');
+  return j.data;
+}
+
+
+// ============================================================
+// 載入設定（先讀快取，再背景刷新）
+// ============================================================
+async function loadConfig(forceRefresh) {
+  const cacheStr = localStorage.getItem(LS.CONFIG);
+  if (cacheStr && !forceRefresh) {
+    try { state.config = JSON.parse(cacheStr); } catch (e) {}
+  }
+
+  if (!getGasUrl()) {
+    // 未設定 GAS：用本地預設讓使用者先看到 UI
+    state.config = state.config || { system: { company: '員和工業平鎮廠' }, devices: [] };
+    return;
+  }
+
+  try {
+    const data = await apiGet('getConfig');
+    state.config = data;
+    localStorage.setItem(LS.CONFIG, JSON.stringify(data));
+    localStorage.setItem(LS.CONFIG_TIME, String(Date.now()));
+    if (data.system && data.system.sheetId) {
+      localStorage.setItem('ehs.sheet_id', data.system.sheetId);
+    }
+  } catch (e) {
+    if (!state.config) {
+      state.config = { system: { company: '員和工業平鎮廠' }, devices: [] };
+    }
+    if (forceRefresh) throw e;
+  }
+}
+
+
+// ============================================================
+// 渲染：頂部列
+// ============================================================
+function renderTopbar() {
+  const titles = {
+    home: 'EHS 抄表',
+    list: state.process ? state.process + ' · 抄表' : '抄表',
+    input: '輸入數值',
+    ox: '設備狀態',
+    confirm: '送出確認',
+    settings: '設定',
+    history: '歷史查詢',
+    setup: '首次設定',
+  };
+  $('page-title').textContent = titles[state.page] || 'EHS';
+  $('back-btn').style.display = state.page === 'home' || state.page === 'setup' ? 'none' : 'inline-block';
+  $('net-dot').className = 'statusdot ' + (state.online ? 'ok' : 'err');
+  $('net-dot').title = state.online ? '已連線' : '離線中';
+}
+
+function goBack() {
+  if (state.page === 'input' || state.page === 'ox') { state.page = 'list'; state.buffer = ''; }
+  else if (state.page === 'list') { state.page = 'home'; state.process = null; }
+  else if (state.page === 'confirm') { state.page = 'home'; }
+  else if (state.page === 'settings' || state.page === 'history') { state.page = 'home'; }
+  render();
+}
+
+
+// ============================================================
+// 渲染：首頁
+// ============================================================
+function renderHome() {
+  if (!getGasUrl()) {
+    return renderSetup();
+  }
+  if (!state.config || !state.config.devices.length) {
+    return '<div class="empty">設備清單載入中...<br><br><button class="save-btn" onclick="reloadConfig()">重新載入</button></div>';
+  }
+
+  const devices = state.config.devices;
+  const total = devices.length;
+  const done = Object.keys(state.readings).length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+
+  // 製程分組
+  const groups = {};
+  devices.forEach(d => {
+    if (!groups[d.process]) groups[d.process] = { items: [], cats: {} };
+    groups[d.process].items.push(d);
+    if (!groups[d.process].cats[d.category]) groups[d.process].cats[d.category] = 0;
+    groups[d.process].cats[d.category]++;
+  });
+
+  let processCards = '';
+  Object.keys(groups).sort().forEach(p => {
+    const g = groups[p];
+    const pDone = g.items.filter(d => state.readings[key(d.code, d.metric)] !== undefined).length;
+    const allDone = pDone === g.items.length && g.items.length > 0;
+    const cats = Object.entries(g.cats).map(([k, v]) => k + ' ' + v).join(' · ');
+    processCards += `
+      <button class="process-card${allDone ? ' done' : ''}" onclick="enterProcess('${p}')">
+        <div class="icon">${p}</div>
+        <div class="info">
+          <div class="name">${p} 製造程序</div>
+          <div class="sub">${cats}</div>
+        </div>
+        <div class="val">${pDone}/${g.items.length}</div>
+        <div class="arrow">›</div>
+      </button>
+    `;
+  });
+
+  // 超標提醒
+  let alertBlock = '';
+  if (state.alerts && state.alerts.length) {
+    const items = state.alerts.slice(0, 3).map(a =>
+      `<div>· ${a.code} ${a.metric} = <b>${a.value} ${a.unit}</b>（標準 ${a.min}~${a.max}）</div>`
+    ).join('');
+    alertBlock = `<div class="alert danger"><b>⚠ 今日超標 ${state.alerts.length} 項</b>${items}</div>`;
+  }
+
+  return `
+    <div class="page">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-size:12px;color:#888">${state.config.system.company || '員和工業平鎮廠'}</div>
+          <span class="date-pill" onclick="changeDate()">📅 ${state.date}</span>
+        </div>
+        <div class="card-title">今日抄表進度</div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div class="big">${done} <span style="font-size:14px;color:#888">/ ${total}</span></div>
+          <div style="color:#888;font-size:13px">${pct}%</div>
+        </div>
+        <div class="progress${done === total ? ' done' : ''}"><div style="width:${pct}%"></div></div>
+      </div>
+
+      ${alertBlock}
+
+      <div style="font-size:13px;color:#666;margin:6px 4px 8px">選擇製造程序</div>
+      ${processCards}
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+        <button class="device-row" style="justify-content:center" onclick="goHistory()">📊 歷史查詢</button>
+        <button class="device-row" style="justify-content:center" onclick="goSettings()">⚙ 設定</button>
+      </div>
+
+      <button class="save-btn" style="margin-top:14px" ${done === 0 ? 'disabled' : ''} onclick="goConfirm()">
+        ${done === total ? '✓ 已完成，前往送出' : done > 0 ? `送出 (${done} 筆)` : '尚未抄表'}
+      </button>
+
+      <div style="text-align:center;color:#BBB;font-size:11px;margin-top:20px">v${APP_VERSION}</div>
+    </div>
+  `;
+}
+
+
+// ============================================================
+// 渲染：製程內設備列表
+// ============================================================
+function renderList() {
+  const devices = state.config.devices.filter(d => d.process === state.process);
+
+  // 依分類分組
+  const byCategory = {};
+  devices.forEach(d => {
+    if (!byCategory[d.category]) byCategory[d.category] = {};
+    if (!byCategory[d.category][d.code]) {
+      byCategory[d.category][d.code] = { name: d.name, metrics: [] };
+    }
+    byCategory[d.category][d.code].metrics.push(d);
+  });
+
+  let html = `<div class="page">`;
+
+  Object.keys(byCategory).forEach(cat => {
+    const items = byCategory[cat];
+    const codes = Object.keys(items);
+    const totalInCat = codes.reduce((s, c) => s + items[c].metrics.length, 0);
+    const doneInCat = codes.reduce((s, c) => s + items[c].metrics.filter(m => state.readings[key(m.code, m.metric)] !== undefined).length, 0);
+
+    html += `<div class="group-h"><span class="badge">${cat}</span> ${doneInCat}/${totalInCat}</div>`;
+
+    codes.forEach(c => {
+      items[c].metrics.forEach((m, idx) => {
+        const v = state.readings[key(m.code, m.metric)];
+        const filled = v !== undefined;
+        let valDisplay;
+        if (filled) {
+          const oob = (m.min !== null && v < m.min) || (m.max !== null && v > m.max);
+          valDisplay = `<span class="${oob ? 'oob' : ''}">${fmt(v, m.format)} ${m.unit}</span>`;
+        } else {
+          valDisplay = '<span class="empty">未填</span>';
+        }
+        // 取得此 device 在全 list 中的索引（為 input 頁用）
+        const globalIdx = state.config.devices.findIndex(x => x.code === m.code && x.metric === m.metric);
+        html += `
+          <button class="device-row${filled ? ' done' : ''}" onclick="enterInput(${globalIdx})">
+            <div class="num">${filled ? '✓' : ''}</div>
+            <div class="info">
+              <div class="line1">${m.code} · ${m.metric}</div>
+              <div class="line2">${m.name}${m.min !== null || m.max !== null ? ` · 標準 ${m.min ?? ''}~${m.max ?? ''} ${m.unit}` : ''}</div>
+            </div>
+            <div class="val">${valDisplay}</div>
+          </button>
+        `;
+      });
+    });
+  });
+
+  html += '</div>';
+  return html;
+}
+
+
+// ============================================================
+// 渲染：KEY IN
+// ============================================================
+function renderInput() {
+  const dev = state.config.devices[state.itemIdx];
+  if (!dev) { state.page = 'list'; return renderList(); }
+
+  // O/X 類型不在此頁，但目前架構是設備清單即監測項目，沒有 O/X 監測項目
+  // O/X 由 GAS 自動依「當天該設備是否有 KEY 任一項」自動填
+
+  const buf = state.buffer;
+  const num = buf === '' ? null : parseFloat(buf);
+  const hasMin = dev.min !== null && dev.min !== '';
+  const hasMax = dev.max !== null && dev.max !== '';
+  const oob = num !== null && ((hasMin && num < Number(dev.min)) || (hasMax && num > Number(dev.max)));
+
+  let display;
+  let warnLine = '';
+  if (buf === '') display = '<span class="num empty">—</span>';
+  else {
+    display = `<span class="num${oob ? ' oob' : ''}">${buf}</span>`;
+    if (oob) warnLine = `<div class="warn">⚠ 超出標準範圍 ${dev.min ?? '-'}~${dev.max ?? '-'} ${dev.unit}</div>`;
+    else if (hasMin || hasMax) warnLine = `<div class="ok-msg">✓ 在正常範圍內</div>`;
+  }
+
+  const isDecimal = dev.format === '小數1位' || dev.format === '小數2位';
+
+  // 鍵盤布局
+  const rows = [
+    ['1','2','3'],
+    ['4','5','6'],
+    ['7','8','9'],
+    isDecimal ? ['.', '0', '⌫'] : ['00', '0', '⌫']
+  ];
+
+  let pad = '';
+  rows.forEach(row => {
+    row.forEach(k => {
+      const fn = (k === '⌫');
+      pad += `<button class="${fn ? 'fn' : ''}" onclick="press('${k}')">${k}</button>`;
+    });
+  });
+
+  const yest = state.yesterday[key(dev.code, dev.metric)];
+  const sameBtn = yest !== undefined && yest !== null
+    ? `<button class="same" onclick="useYesterday()">同昨日 ${fmt(yest, dev.format)} ${dev.unit}</button>`
+    : `<button class="same" disabled>昨日無資料</button>`;
+
+  // 範圍提示
+  let rangeText = '';
+  if (hasMin || hasMax) rangeText = `<span>標準 <b>${dev.min ?? '-'} ~ ${dev.max ?? '-'}</b> ${dev.unit}</span>`;
+  else rangeText = '<span style="color:#999">未設定標準範圍</span>';
+
+  return `
+    <div class="page">
+      <div class="kin-header">
+        <div class="kin-code">${dev.code} · ${dev.name}</div>
+        <div class="kin-name">${dev.metric}</div>
+        <div class="kin-range">${rangeText}</div>
+      </div>
+      <div class="kin-display">
+        ${display}
+        <span class="unit">${dev.unit}</span>
+        ${warnLine}
+      </div>
+      <div class="keypad">${pad}</div>
+      ${sameBtn}
+      <button class="save-btn" ${buf === '' ? 'disabled' : ''} onclick="saveAndNext()">儲存 → 下一個</button>
+      <button class="save-btn skip" onclick="skipToList()">先回列表</button>
+    </div>
+  `;
+}
+
+
+// ============================================================
+// 渲染：送出確認頁
+// ============================================================
+function renderConfirm() {
+  const list = Object.entries(state.readings);
+  if (!list.length) return '<div class="empty">尚無暫存資料</div>';
+
+  let items = '';
+  let oobCount = 0;
+  list.forEach(([k, v]) => {
+    const [code, metric] = k.split('||');
+    const dev = state.config.devices.find(d => d.code === code && d.metric === metric);
+    if (!dev) return;
+    const hasMin = dev.min !== null && dev.min !== '';
+    const hasMax = dev.max !== null && dev.max !== '';
+    const oob = (hasMin && v < dev.min) || (hasMax && v > dev.max);
+    if (oob) oobCount++;
+    items += `
+      <div class="confirm-item">
+        <div>
+          <div style="font-size:12px;color:#888">${dev.process} · ${code}</div>
+          <div>${dev.metric}</div>
+        </div>
+        <div class="v${oob ? ' oob' : ''}">${fmt(v, dev.format)} ${dev.unit}</div>
+      </div>
+    `;
+  });
+
+  const oobBlock = oobCount > 0
+    ? `<div class="alert danger">⚠ 有 ${oobCount} 項超出標準範圍，請再確認是否需重新量測</div>`
+    : '';
+
+  return `
+    <div class="page">
+      <div class="alert info">
+        將送出 <b>${list.length}</b> 筆資料至 Google Sheets · 抄表日期 <b>${state.date}</b>
+      </div>
+      ${oobBlock}
+      <div class="confirm-list">${items}</div>
+      <button class="save-btn" onclick="submitReadings()" id="submit-btn">確認送出</button>
+      <button class="save-btn skip" onclick="exportConfirmAsText()" style="margin-top:8px">複製明細（離線備用）</button>
+    </div>
+  `;
+}
+
+
+// ============================================================
+// 渲染：歷史查詢頁
+// ============================================================
+function renderHistory() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+
+  // 顯示當前年的 12 個月，預設高亮本月
+  let monthBtns = '';
+  for (let mm = 1; mm <= 12; mm++) {
+    const active = mm === m ? ' active' : '';
+    monthBtns += `<button class="${active}" onclick="loadHistoryMonth(${y},${mm})">${y}-${pad(mm)}</button>`;
+  }
+
+  return `
+    <div class="page">
+      <div class="alert info">點選任一月份查看資料，可下載 .xlsx 自己存檔</div>
+      <div class="month-grid">${monthBtns}</div>
+      <div id="history-detail" class="card">
+        <div class="empty">尚未選擇月份</div>
+      </div>
+    </div>
+  `;
+}
+
+
+// ============================================================
+// 渲染：設定頁
+// ============================================================
+function renderSettings() {
+  const gasUrl = getGasUrl();
+  const sys = state.config && state.config.system || {};
+  const devCount = state.config && state.config.devices.length || 0;
+  const cacheTime = localStorage.getItem(LS.CONFIG_TIME);
+  const cacheStr = cacheTime ? new Date(Number(cacheTime)).toLocaleString('zh-TW') : '未同步';
+
+  return `
+    <div class="page">
+      <div class="card">
+        <div class="card-title">後端連線</div>
+        <div class="setting-row">
+          <div class="lbl">GAS Web App URL</div>
+          <input id="gas-url" value="${gasUrl}" placeholder="https://script.google.com/..." style="width:100%">
+        </div>
+        <button class="save-btn" onclick="saveGasUrl()" style="margin-top:10px">儲存</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">設備資料</div>
+        <div class="setting-row"><div class="lbl">設備總數</div><div>${devCount}</div></div>
+        <div class="setting-row"><div class="lbl">上次同步</div><div style="font-size:12px">${cacheStr}</div></div>
+        <button class="save-btn" onclick="reloadConfig(true)" style="margin-top:10px">立即同步設定</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">系統資訊</div>
+        <div class="setting-row"><div class="lbl">公司</div><div>${sys.company || '-'}</div></div>
+        <div class="setting-row"><div class="lbl">管制編號</div><div>${sys.controlNo || '-'}</div></div>
+        <div class="setting-row"><div class="lbl">PWA 版本</div><div>${APP_VERSION}</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">資料管理</div>
+        <button class="save-btn skip" onclick="exportLocalData()" style="margin-bottom:8px">匯出本機暫存資料</button>
+        <button class="save-btn skip" onclick="clearLocalData()">清空本機暫存</button>
+      </div>
+
+      <div class="alert info" style="margin-top:14px">
+        <b>修改設備</b>：請直接到 Google Sheets 的 <code>__設定__</code> 分頁編輯。改完後回 PWA 點「立即同步設定」即可。
+      </div>
+    </div>
+  `;
+}
+
+
+// ============================================================
+// 渲染：首次設定（無 GAS URL 時顯示）
+// ============================================================
+function renderSetup() {
+  return `
+    <div class="page">
+      <div class="card">
+        <h2 style="margin:0 0 12px;font-size:18px;color:#1F3864">首次設定</h2>
+        <div style="font-size:13px;color:#666;line-height:1.7;margin-bottom:14px">
+          請貼上 Google Apps Script 部署後的 Web App URL：<br>
+          （格式：<code style="font-size:11px">https://script.google.com/macros/s/.../exec</code>）
+        </div>
+        <input id="setup-url" placeholder="貼上 GAS Web App URL" style="width:100%;padding:10px;border:1px solid #DDD;border-radius:8px;font-size:13px">
+        <button class="save-btn" onclick="completeSetup()" style="margin-top:12px">完成設定並開始</button>
+      </div>
+      <div class="alert info">
+        部署 GAS 步驟請見專案根目錄 <code>README.md</code>
+      </div>
+    </div>
+  `;
+}
+
+
+// ============================================================
+// 互動：頁面導航
+// ============================================================
+function render() {
+  renderTopbar();
+  let html;
+  switch (state.page) {
+    case 'home':     html = renderHome();     break;
+    case 'list':     html = renderList();     break;
+    case 'input':    html = renderInput();    break;
+    case 'confirm':  html = renderConfirm();  break;
+    case 'history':  html = renderHistory();  break;
+    case 'settings': html = renderSettings(); break;
+    case 'setup':    html = renderSetup();    break;
+    default:         html = '<div class="empty">頁面不存在</div>';
+  }
+  $('content').innerHTML = html;
+}
+
+function enterProcess(p) {
+  state.process = p;
+  state.page = 'list';
+  render();
+}
+
+function enterInput(globalIdx) {
+  state.itemIdx = globalIdx;
+  state.buffer = '';
+  state.page = 'input';
+  render();
+}
+
+function skipToList() {
+  state.page = 'list';
+  state.buffer = '';
+  render();
+}
+
+function goConfirm() {
+  state.page = 'confirm';
+  render();
+}
+
+function goHistory() { state.page = 'history'; render(); }
+function goSettings() { state.page = 'settings'; render(); }
+
+
+// ============================================================
+// 互動：KEY IN
+// ============================================================
+function press(k) {
+  const dev = state.config.devices[state.itemIdx];
+  const isDecimal = dev.format === '小數1位' || dev.format === '小數2位';
+
+  if (k === '⌫') {
+    state.buffer = state.buffer.slice(0, -1);
+  } else if (k === '.') {
+    if (!state.buffer.includes('.') && state.buffer !== '') state.buffer += '.';
+    else if (state.buffer === '') state.buffer = '0.';
+  } else if (k === '00') {
+    if (state.buffer !== '') state.buffer += '00';
+  } else {
+    // 限制小數位數
+    if (isDecimal && state.buffer.includes('.')) {
+      const decimals = state.buffer.split('.')[1] || '';
+      const maxDec = dev.format === '小數2位' ? 2 : 1;
+      if (decimals.length >= maxDec) return;
+    }
+    if (state.buffer.length >= 8) return;
+    state.buffer += k;
+  }
+  render();
+}
+
+async function saveAndNext() {
+  const dev = state.config.devices[state.itemIdx];
+  const val = parseFloat(state.buffer);
+  if (isNaN(val)) return;
+
+  state.readings[key(dev.code, dev.metric)] = val;
+  try {
+    await saveReading(dev.code, dev.metric, val, state.date);
+  } catch (e) {
+    toast('本地儲存失敗：' + e.message, 'error');
+  }
+
+  // 檢查超標
+  updateAlerts();
+
+  // 跳下一個未填
+  const devs = state.config.devices;
+  let nextIdx = -1;
+  for (let i = 0; i < devs.length; i++) {
+    const idx = (state.itemIdx + 1 + i) % devs.length;
+    const d = devs[idx];
+    if (d.process !== state.process) continue;
+    if (state.readings[key(d.code, d.metric)] === undefined) { nextIdx = idx; break; }
+  }
+  if (nextIdx === -1) {
+    state.page = 'list';
+    toast('本製程已全部抄完 ✓', 'success');
+  } else {
+    state.itemIdx = nextIdx;
+    state.buffer = '';
+  }
+  render();
+}
+
+async function useYesterday() {
+  const dev = state.config.devices[state.itemIdx];
+  const v = state.yesterday[key(dev.code, dev.metric)];
+  if (v === undefined || v === null) return;
+  state.buffer = fmt(v, dev.format);
+  await saveAndNext();
+}
+
+
+// ============================================================
+// 送出
+// ============================================================
+async function submitReadings() {
+  const btn = $('submit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 送出中...';
+
+  const list = Object.entries(state.readings).map(([k, v]) => {
+    const [code, metric] = k.split('||');
+    return { code, metric, value: v };
+  });
+
+  try {
+    const result = await apiPost('submit', {
+      date: state.date,
+      operator: (state.config.system || {}).operator || '',
+      readings: list,
+    });
+    toast(`✓ 已送出 ${result.written} 筆`, 'success', 3000);
+    await clearReadings(state.date);
+    state.readings = {};
+    state.page = 'home';
+    render();
+  } catch (e) {
+    toast('送出失敗：' + e.message + '<br>請保留此頁，網路恢復後再試', 'error', 6000);
+    btn.disabled = false;
+    btn.innerHTML = '重試送出';
+  }
+}
+
+function exportConfirmAsText() {
+  let txt = `EHS 抄表 ${state.date}\n`;
+  Object.entries(state.readings).forEach(([k, v]) => {
+    const [code, metric] = k.split('||');
+    const dev = state.config.devices.find(d => d.code === code && d.metric === metric);
+    if (!dev) return;
+    txt += `${dev.process} ${code} ${metric}: ${fmt(v, dev.format)} ${dev.unit}\n`;
+  });
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(() => toast('已複製明細到剪貼簿', 'success'));
+  } else {
+    prompt('複製以下文字：', txt);
+  }
+}
+
+
+// ============================================================
+// 超標警示
+// ============================================================
+function updateAlerts() {
+  state.alerts = [];
+  Object.entries(state.readings).forEach(([k, v]) => {
+    const [code, metric] = k.split('||');
+    const dev = state.config.devices.find(d => d.code === code && d.metric === metric);
+    if (!dev) return;
+    const hasMin = dev.min !== null && dev.min !== '';
+    const hasMax = dev.max !== null && dev.max !== '';
+    if ((hasMin && v < dev.min) || (hasMax && v > dev.max)) {
+      state.alerts.push({ code, metric, value: v, min: dev.min, max: dev.max, unit: dev.unit });
+    }
+  });
+}
+
+
+// ============================================================
+// 日期修改
+// ============================================================
+function changeDate() {
+  const v = prompt('請輸入日期（YYYY-MM-DD）：', state.date);
+  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    if (v !== null) toast('日期格式錯誤', 'error');
+    return;
+  }
+  state.date = v;
+  state.readings = {};
+  loadTodayReadings(v).then(r => {
+    state.readings = r;
+    loadYesterday();
+    render();
+  });
+}
+
+
+// ============================================================
+// 載入昨日資料（批次，一次 GAS 呼叫取全部設備昨日值）
+// ============================================================
+async function loadYesterday() {
+  if (!state.config || !state.config.devices.length || !getGasUrl()) return;
+  try {
+    const result = await apiGet('getYesterdayBatch', { date: state.date });
+    state.yesterday = result.values || {};
+  } catch (e) {
+    state.yesterday = {};
+  }
+}
+
+
+// ============================================================
+// 歷史查詢
+// ============================================================
+async function loadHistoryMonth(y, m) {
+  const det = $('history-detail');
+  if (!det) return;
+  det.innerHTML = '<div class="empty"><span class="spinner" style="border-color:#1F3864;border-right-color:transparent"></span> 載入中...</div>';
+  try {
+    const data = await apiGet('getMonth', { month: y + '-' + pad(m) });
+    if (!data.records.length) {
+      det.innerHTML = '<div class="empty">該月份無資料</div>';
+      return;
+    }
+    let html = `<div style="font-weight:600;margin-bottom:10px">${y}-${pad(m)} · ${data.records.length} 項設備</div>`;
+    data.records.slice(0, 20).forEach(r => {
+      const days = Object.keys(r.days).length;
+      html += `<div class="confirm-item"><div>${r.code} · ${r.metric}</div><div>${days} 天有資料</div></div>`;
+    });
+    if (data.records.length > 20) html += `<div style="text-align:center;color:#999;font-size:12px;margin-top:8px">...等共 ${data.records.length} 項</div>`;
+    html += `<div style="margin-top:14px">
+      <a href="${getSheetExportUrl(y,m)}" target="_blank" style="display:block;text-align:center;padding:10px;background:#1F3864;color:#fff;border-radius:8px;text-decoration:none">下載 .xlsx</a>
+    </div>`;
+    det.innerHTML = html;
+  } catch (e) {
+    det.innerHTML = '<div class="alert danger">載入失敗：' + e.message + '</div>';
+  }
+}
+
+function getSheetExportUrl(y, m) {
+  // 直接利用 Google Sheets 內建匯出
+  const sheetId = localStorage.getItem('ehs.sheet_id') || '';
+  if (!sheetId) return '#';
+  return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
+}
+
+
+// ============================================================
+// 設定相關
+// ============================================================
+function saveGasUrl() {
+  const v = $('gas-url').value.trim();
+  if (!v) { toast('URL 不可為空', 'error'); return; }
+  localStorage.setItem(LS.GAS_URL, v);
+  toast('已儲存', 'success');
+  reloadConfig(true);
+}
+
+async function reloadConfig(showToast) {
+  try {
+    await loadConfig(true);
+    if (showToast) toast('同步完成 · ' + state.config.devices.length + ' 個設備', 'success');
+    render();
+  } catch (e) {
+    toast('同步失敗：' + e.message, 'error');
+  }
+}
+
+function completeSetup() {
+  const v = $('setup-url').value.trim();
+  if (!v) { toast('請貼上 URL', 'error'); return; }
+  localStorage.setItem(LS.GAS_URL, v);
+  reloadConfig(true).then(() => {
+    state.page = 'home';
+    render();
+  });
+}
+
+async function exportLocalData() {
+  const r = await loadTodayReadings(state.date);
+  const txt = JSON.stringify({ date: state.date, readings: r }, null, 2);
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(() => toast('已複製本機資料', 'success'));
+  else prompt('本機資料：', txt);
+}
+
+async function clearLocalData() {
+  if (!confirm('確定清空本機所有暫存？(已上傳的資料不受影響)')) return;
+  await clearReadings(state.date);
+  state.readings = {};
+  toast('已清空', 'success');
+  render();
+}
+
+
+// ============================================================
+// 啟動
+// ============================================================
+window.addEventListener('online', () => { state.online = true; renderTopbar(); });
+window.addEventListener('offline', () => { state.online = false; renderTopbar(); });
+
+document.getElementById('back-btn').addEventListener('click', goBack);
+
+(async function init() {
+  await loadConfig(false);
+  state.readings = await loadTodayReadings(state.date);
+  updateAlerts();
+  render();
+
+  if (getGasUrl()) {
+    try {
+      await loadConfig(true);
+      loadYesterday();  // 背景批次預讀昨日，不 await 避免卡畫面
+      render();
+    } catch (e) {}
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>
