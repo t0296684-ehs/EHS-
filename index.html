@@ -673,7 +673,6 @@ function renderHistory() {
   const y = now.getFullYear();
   const m = now.getMonth() + 1;
 
-  // 顯示當前年的 12 個月，預設高亮本月
   let monthBtns = '';
   for (let mm = 1; mm <= 12; mm++) {
     const active = mm === m ? ' active' : '';
@@ -682,14 +681,26 @@ function renderHistory() {
 
   return `
     <div class="page">
-      <div class="alert info">點選任一月份查看資料，可下載 .xlsx 自己存檔</div>
+      <div style="font-size:13px;color:#666;font-weight:600;margin-bottom:8px">查看當月資料</div>
       <div class="month-grid">${monthBtns}</div>
       <div id="history-detail" class="card">
-        <div class="empty">尚未選擇月份</div>
+        <div class="empty">點選上方月份查看</div>
+      </div>
+
+      <div style="font-size:13px;color:#666;font-weight:600;margin:18px 0 8px;display:flex;justify-content:space-between;align-items:center">
+        <span>歷史封存紀錄</span>
+        <button onclick="loadArchiveIndex()" style="font-size:12px;color:#1F3864;text-decoration:underline;background:none;border:none;cursor:pointer">重新整理</button>
+      </div>
+      <div id="archive-index-box" class="card">
+        <div class="empty">載入中...</div>
       </div>
     </div>
   `;
 }
+
+// 每次進入歷史頁時自動載入封存索引
+const _origGoHistory = goHistory;
+function goHistory() { _origGoHistory(); setTimeout(loadArchiveIndex, 100); }
 
 
 // ============================================================
@@ -725,6 +736,14 @@ function renderSettings() {
         <div class="setting-row"><div class="lbl">公司</div><div>${sys.company || '-'}</div></div>
         <div class="setting-row"><div class="lbl">管制編號</div><div>${sys.controlNo || '-'}</div></div>
         <div class="setting-row"><div class="lbl">PWA 版本</div><div>${APP_VERSION}</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">封存作業</div>
+        <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.6">
+          月底抄表完成後，將當月資料封存至歷史分頁，並清空該月資料欄供下月使用。
+        </div>
+        <button class="save-btn skip" onclick="archiveLastMonth()" id="archive-btn">封存上月資料</button>
       </div>
 
       <div class="card">
@@ -1005,10 +1024,36 @@ async function loadHistoryMonth(y, m) {
 }
 
 function getSheetExportUrl(y, m) {
-  // 直接利用 Google Sheets 內建匯出
   const sheetId = localStorage.getItem('ehs.sheet_id') || '';
   if (!sheetId) return '#';
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
+}
+
+async function loadArchiveIndex() {
+  const box = $('archive-index-box');
+  if (!box) return;
+  box.innerHTML = '<div class="empty"><span class="spinner" style="border-color:#1F3864;border-right-color:transparent"></span> 載入中...</div>';
+  try {
+    const data = await apiGet('getArchiveIndex');
+    if (!data.records || !data.records.length) {
+      box.innerHTML = '<div class="empty">尚無封存紀錄</div>';
+      return;
+    }
+    let html = '';
+    data.records.slice().reverse().forEach(r => {
+      html += `
+        <div class="confirm-item" style="cursor:pointer" onclick="loadHistoryMonth(${r.month.split('-')[0]},${Number(r.month.split('-')[1])})">
+          <div>
+            <div style="font-weight:600">${r.month}</div>
+            <div style="font-size:11px;color:#999">${r.archivedAt} · ${r.count} 筆資料</div>
+          </div>
+          <div style="color:#1F3864;font-size:13px">查看 ›</div>
+        </div>`;
+    });
+    box.innerHTML = html;
+  } catch (e) {
+    box.innerHTML = '<div class="alert danger">載入失敗：' + e.message + '</div>';
+  }
 }
 
 
@@ -1056,6 +1101,25 @@ async function clearLocalData() {
   state.readings = {};
   toast('已清空', 'success');
   render();
+}
+
+async function archiveLastMonth() {
+  const now = new Date();
+  const lastM = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const y = lastM.getFullYear();
+  const m = lastM.getMonth() + 1;
+  const monthStr = y + '-' + pad(m);
+  if (!confirm(`確定封存 ${monthStr} 的資料？\n封存後該月資料欄會被清空，請確認已全數抄表完畢。`)) return;
+  const btn = $('archive-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '封存中...'; }
+  try {
+    const r = await apiPost('archive', { month: monthStr });
+    toast(`✓ ${monthStr} 已封存（${r.clearedRows} 列）`, 'success', 4000);
+  } catch (e) {
+    toast('封存失敗：' + e.message, 'error', 5000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '封存上月資料'; }
+  }
 }
 
 
