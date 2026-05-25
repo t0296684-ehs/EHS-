@@ -336,9 +336,6 @@ async function loadConfig(forceRefresh) {
     state.config = data;
     localStorage.setItem(LS.CONFIG, JSON.stringify(data));
     localStorage.setItem(LS.CONFIG_TIME, String(Date.now()));
-    if (data.system && data.system.sheetId) {
-      localStorage.setItem('ehs.sheet_id', data.system.sheetId);
-    }
   } catch (e) {
     if (!state.config) {
       state.config = { system: { company: '員和工業平鎮廠' }, devices: [] };
@@ -944,16 +941,12 @@ function changeDate() {
 
 
 // ============================================================
-// 載入昨日資料（批次，一次 GAS 呼叫取全部設備昨日值）
+// 載入昨日資料快取（給「同昨日」用，啟動時批次預讀）
 // ============================================================
 async function loadYesterday() {
-  if (!state.config || !state.config.devices.length || !getGasUrl()) return;
-  try {
-    const result = await apiGet('getYesterdayBatch', { date: state.date });
-    state.yesterday = result.values || {};
-  } catch (e) {
-    state.yesterday = {};
-  }
+  if (!state.config || !state.config.devices.length) return;
+  // 簡化：只在進入 input 時 lazy 載入
+  // 此版先在每個 input 頁進入時讀；如要更快可改成 batch fetch
 }
 
 
@@ -1054,16 +1047,9 @@ document.getElementById('back-btn').addEventListener('click', goBack);
   updateAlerts();
   render();
 
+  // 背景刷新設定
   if (getGasUrl()) {
-    try {
-      await loadConfig(true);
-      loadYesterday();  // 背景批次預讀昨日，不 await 避免卡畫面
-      render();
-    } catch (e) {}
-  }
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch(() => {});
+    try { await loadConfig(true); render(); } catch (e) {}
   }
 })();
 </script>
