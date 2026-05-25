@@ -1073,6 +1073,10 @@ document.getElementById('back-btn').addEventListener('click', goBack);
   updateAlerts();
   render();
 
+  // 歡迎回來
+  const _op = state.config && state.config.system && state.config.system.operator;
+  if (_op) setTimeout(function(){ toast('👋 歡迎回來，' + _op + '！', 'success', 2800); }, 2100);
+
   // 背景刷新設定
   if (getGasUrl()) {
     try { await loadConfig(true); render(); } catch (e) {}
