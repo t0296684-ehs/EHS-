@@ -452,6 +452,11 @@ function renderHome() {
     alertBlock = `<div class="alert danger"><b>⚠ 今日超標 ${state.alerts.length} 項</b>${items}</div>`;
   }
 
+  // 12 月年度提醒
+  if (new Date().getMonth() === 11) {
+    alertBlock = `<div class="alert"><b>📅 年度提醒</b><div style="margin-top:4px">12月了！年底前請至 Google Sheets 下載年度備份（檔案 → 下載 → xlsx），再至設定頁執行「清零全年資料」。</div></div>` + alertBlock;
+  }
+
   return `
     <div class="page">
       <div class="card">
@@ -671,36 +676,26 @@ function renderConfirm() {
 function renderHistory() {
   const now = new Date();
   const y = now.getFullYear();
-  const m = now.getMonth() + 1;
 
   let monthBtns = '';
   for (let mm = 1; mm <= 12; mm++) {
-    const active = mm === m ? ' active' : '';
-    monthBtns += `<button class="${active}" onclick="loadHistoryMonth(${y},${mm})">${y}-${pad(mm)}</button>`;
+    const active = mm === now.getMonth() + 1 ? ' active' : '';
+    monthBtns += `<button class="${active}" onclick="loadHistoryMonth(${y},${mm})">${pad(mm)}月</button>`;
   }
 
   return `
     <div class="page">
-      <div style="font-size:13px;color:#666;font-weight:600;margin-bottom:8px">查看當月資料</div>
+      <div style="font-size:13px;color:#666;font-weight:600;margin-bottom:8px">查看月份資料（${y} 年）</div>
       <div class="month-grid">${monthBtns}</div>
       <div id="history-detail" class="card">
         <div class="empty">點選上方月份查看</div>
       </div>
-
-      <div style="font-size:13px;color:#666;font-weight:600;margin:18px 0 8px;display:flex;justify-content:space-between;align-items:center">
-        <span>歷史封存紀錄</span>
-        <button onclick="loadArchiveIndex()" style="font-size:12px;color:#1F3864;text-decoration:underline;background:none;border:none;cursor:pointer">重新整理</button>
-      </div>
-      <div id="archive-index-box" class="card">
-        <div class="empty">載入中...</div>
+      <div class="alert info" style="margin-top:14px">
+        如需查閱往年資料，請至 Google Sheets 開啟存檔的 xlsx 檔案。
       </div>
     </div>
   `;
 }
-
-// 每次進入歷史頁時自動載入封存索引
-const _origGoHistory = goHistory;
-function goHistory() { _origGoHistory(); setTimeout(loadArchiveIndex, 100); }
 
 
 // ============================================================
@@ -736,14 +731,6 @@ function renderSettings() {
         <div class="setting-row"><div class="lbl">公司</div><div>${sys.company || '-'}</div></div>
         <div class="setting-row"><div class="lbl">管制編號</div><div>${sys.controlNo || '-'}</div></div>
         <div class="setting-row"><div class="lbl">PWA 版本</div><div>${APP_VERSION}</div></div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">封存作業</div>
-        <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.6">
-          月底抄表完成後，將當月資料封存至歷史分頁，並清空該月資料欄供下月使用。
-        </div>
-        <button class="save-btn skip" onclick="archiveLastMonth()" id="archive-btn">封存上月資料</button>
       </div>
 
       <div class="card">
@@ -928,11 +915,19 @@ async function submitReadings() {
       operator: (state.config.system || {}).operator || '',
       readings: list,
     });
-    toast(`✓ 已送出 ${result.written} 筆`, 'success', 3000);
-    await clearReadings(state.date);
-    state.readings = {};
-    state.page = 'home';
-    render();
+    const blocked = (result.skipped || []).filter(s => s.reason === 'already_has_data');
+    if (blocked.length > 0) {
+      // 有舊資料未清零，不清本機暫存，讓使用者知道
+      toast(`⚠ ${blocked.length} 筆已有舊資料未覆蓋，${result.written} 筆已送出。請至 Google Sheets 下載備份並在設定頁清零後再繼續。`, 'error', 9000);
+      btn.disabled = false;
+      btn.innerHTML = '重試送出';
+    } else {
+      toast(`✓ 已送出 ${result.written} 筆`, 'success', 3000);
+      await clearReadings(state.date);
+      state.readings = {};
+      state.page = 'home';
+      render();
+    }
   } catch (e) {
     toast('送出失敗：' + e.message + '<br>請保留此頁，網路恢復後再試', 'error', 6000);
     btn.disabled = false;
@@ -1037,33 +1032,6 @@ function getSheetExportUrl(y, m) {
   return `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=xlsx`;
 }
 
-async function loadArchiveIndex() {
-  const box = $('archive-index-box');
-  if (!box) return;
-  box.innerHTML = '<div class="empty"><span class="spinner" style="border-color:#1F3864;border-right-color:transparent"></span> 載入中...</div>';
-  try {
-    const data = await apiGet('getArchiveIndex');
-    if (!data.records || !data.records.length) {
-      box.innerHTML = '<div class="empty">尚無封存紀錄</div>';
-      return;
-    }
-    let html = '';
-    data.records.slice().reverse().forEach(r => {
-      html += `
-        <div class="confirm-item" style="cursor:pointer" onclick="loadHistoryMonth(${r.month.split('-')[0]},${Number(r.month.split('-')[1])})">
-          <div>
-            <div style="font-weight:600">${r.month}</div>
-            <div style="font-size:11px;color:#999">${r.archivedAt} · ${r.count} 筆資料</div>
-          </div>
-          <div style="color:#1F3864;font-size:13px">查看 ›</div>
-        </div>`;
-    });
-    box.innerHTML = html;
-  } catch (e) {
-    box.innerHTML = '<div class="alert danger">載入失敗：' + e.message + '</div>';
-  }
-}
-
 
 // ============================================================
 // 設定相關
@@ -1111,24 +1079,6 @@ async function clearLocalData() {
   render();
 }
 
-async function archiveLastMonth() {
-  const now = new Date();
-  const lastM = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const y = lastM.getFullYear();
-  const m = lastM.getMonth() + 1;
-  const monthStr = y + '-' + pad(m);
-  if (!confirm(`確定封存 ${monthStr} 的資料？\n封存後該月資料欄會被清空，請確認已全數抄表完畢。`)) return;
-  const btn = $('archive-btn');
-  if (btn) { btn.disabled = true; btn.textContent = '封存中...'; }
-  try {
-    const r = await apiPost('archive', { month: monthStr });
-    toast(`✓ ${monthStr} 已封存（${r.clearedRows} 列）`, 'success', 4000);
-  } catch (e) {
-    toast('封存失敗：' + e.message, 'error', 5000);
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '封存上月資料'; }
-  }
-}
 
 
 // ============================================================
