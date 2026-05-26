@@ -747,15 +747,11 @@ function renderSettings() {
       </div>
 
       <div class="card">
-        <div class="card-title">ISO 合規月報</div>
+        <div class="card-title">新年度清零</div>
         <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.6">
-          選擇月份後直接下載 PDF，列印手簽備存。
+          清除 01月～12月 所有日期欄的抄表數值，設備清單與公式結構保留。請確認當年度已全數封存後再執行。
         </div>
-        <div class="setting-row">
-          <div class="lbl">報表月份</div>
-          <input type="month" id="report-month" value="${(function(){ const n=new Date(),p=new Date(n.getFullYear(),n.getMonth()-1,1); return p.getFullYear()+'-'+(p.getMonth()+1<10?'0':'')+(p.getMonth()+1); })()}" style="padding:6px 8px;border:1px solid #DDD;border-radius:8px;font-size:14px;width:140px">
-        </div>
-        <button class="save-btn" style="margin-top:12px" onclick="generateIsoReport()" id="report-gen-btn">⬇ 下載 ISO 合規月報 PDF</button>
+        <button class="save-btn skip" style="border-color:#F5222D;color:#F5222D" onclick="clearYearData()" id="clear-year-btn">清零全年抄表資料</button>
       </div>
 
       <div class="card">
@@ -1136,35 +1132,20 @@ async function archiveLastMonth() {
 
 
 // ============================================================
-// ISO 合規月報
+// 新年度清零
 // ============================================================
-async function generateIsoReport() {
-  const monthEl = $('report-month');
-  const month = monthEl ? monthEl.value : '';
-  if (!month) { toast('請先選擇月份', 'error'); return; }
-  const btn = $('report-gen-btn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 產出中（約 15 秒）...'; }
+async function clearYearData() {
+  if (!confirm('確定清零全年抄表資料？\n\n01月～12月 所有日期欄將被清空，設備清單與公式保留。\n\n請確認當年度已全部封存再繼續。')) return;
+  if (!confirm('再次確認：此操作無法復原，確定要繼續？')) return;
+  const btn = $('clear-year-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '清零中...'; }
   try {
-    const result = await apiPost('generateReport', { month });
-    // base64 → Blob → 觸發瀏覽器下載
-    const bytes = atob(result.contentBase64);
-    const arr = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    const blob = new Blob([arr], { type: 'application/pdf' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = result.filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    const note = result.outOfSpecCount > 0 ? `（${result.outOfSpecCount} 項超標，請填矯正措施）` : '（本月無超標）';
-    toast(`✓ ${result.month} 月報已下載 ${note}`, 'success', 5000);
+    const r = await apiPost('clearYear', { confirm: true });
+    toast(`✓ 已清零 ${r.clearedSheets} 個月份，共 ${r.clearedRows} 列`, 'success', 4000);
   } catch (e) {
-    toast('產出失敗：' + e.message, 'error', 6000);
+    toast('清零失敗：' + e.message, 'error', 5000);
   } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '⬇ 下載 ISO 合規月報 PDF'; }
+    if (btn) { btn.disabled = false; btn.textContent = '清零全年抄表資料'; }
   }
 }
 
