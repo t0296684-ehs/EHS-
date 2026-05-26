@@ -747,6 +747,18 @@ function renderSettings() {
       </div>
 
       <div class="card">
+        <div class="card-title">ISO 合規月報</div>
+        <div style="font-size:12px;color:#888;margin-bottom:10px;line-height:1.6">
+          選擇月份後直接下載 PDF，列印手簽備存。
+        </div>
+        <div class="setting-row">
+          <div class="lbl">報表月份</div>
+          <input type="month" id="report-month" value="${(function(){ const n=new Date(),p=new Date(n.getFullYear(),n.getMonth()-1,1); return p.getFullYear()+'-'+(p.getMonth()+1<10?'0':'')+(p.getMonth()+1); })()}" style="padding:6px 8px;border:1px solid #DDD;border-radius:8px;font-size:14px;width:140px">
+        </div>
+        <button class="save-btn" style="margin-top:12px" onclick="generateIsoReport()" id="report-gen-btn">⬇ 下載 ISO 合規月報 PDF</button>
+      </div>
+
+      <div class="card">
         <div class="card-title">資料管理</div>
         <button class="save-btn skip" onclick="exportLocalData()" style="margin-bottom:8px">匯出本機暫存資料</button>
         <button class="save-btn skip" onclick="clearLocalData()">清空本機暫存</button>
@@ -1119,6 +1131,40 @@ async function archiveLastMonth() {
     toast('封存失敗：' + e.message, 'error', 5000);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '封存上月資料'; }
+  }
+}
+
+
+// ============================================================
+// ISO 合規月報
+// ============================================================
+async function generateIsoReport() {
+  const monthEl = $('report-month');
+  const month = monthEl ? monthEl.value : '';
+  if (!month) { toast('請先選擇月份', 'error'); return; }
+  const btn = $('report-gen-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 產出中（約 15 秒）...'; }
+  try {
+    const result = await apiPost('generateReport', { month });
+    // base64 → Blob → 觸發瀏覽器下載
+    const bytes = atob(result.contentBase64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const blob = new Blob([arr], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = result.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const note = result.outOfSpecCount > 0 ? `（${result.outOfSpecCount} 項超標，請填矯正措施）` : '（本月無超標）';
+    toast(`✓ ${result.month} 月報已下載 ${note}`, 'success', 5000);
+  } catch (e) {
+    toast('產出失敗：' + e.message, 'error', 6000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '⬇ 下載 ISO 合規月報 PDF'; }
   }
 }
 
