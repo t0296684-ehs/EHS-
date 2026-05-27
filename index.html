@@ -446,9 +446,12 @@ function renderHome() {
   // 超標提醒
   let alertBlock = '';
   if (state.alerts && state.alerts.length) {
-    const items = state.alerts.slice(0, 3).map(a =>
-      `<div>· ${a.code} ${a.metric} = <b>${a.value} ${a.unit}</b>（標準 ${a.min}~${a.max}）</div>`
-    ).join('');
+    const items = state.alerts.slice(0, 3).map(a => {
+      const display = a.delta !== null
+        ? `今日用量 <b>${a.delta} ${a.unit}</b>（讀值 ${a.value}）`
+        : `= <b>${a.value} ${a.unit}</b>`;
+      return `<div>· ${a.code} ${a.metric} ${display}（上限 ${a.max ?? ''}${a.min != null && a.max != null ? '' : ''}）</div>`;
+    }).join('');
     alertBlock = `<div class="alert danger"><b>⚠ 今日超標 ${state.alerts.length} 項</b>${items}</div>`;
   }
 
@@ -524,8 +527,21 @@ function renderList() {
         const filled = v !== undefined;
         let valDisplay;
         if (filled) {
-          const oob = (m.min !== null && v < m.min) || (m.max !== null && v > m.max);
-          valDisplay = `<span class="${oob ? 'oob' : ''}">${fmt(v, m.format)} ${m.unit}</span>`;
+          const isCum = m.note && m.note.includes('累計');
+          let oob = false;
+          if (isCum) {
+            const yv = state.yesterday[key(m.code, m.metric)];
+            if (yv !== undefined && yv !== null) {
+              const d = v - Number(yv);
+              oob = (m.min !== null && d < m.min) || (m.max !== null && d > m.max);
+              valDisplay = `<div style="text-align:right"><span class="${oob ? 'oob' : ''}">${fmt(v, m.format)}</span><div style="font-size:10px;color:#888">用量 ${d} ${m.unit}</div></div>`;
+            } else {
+              valDisplay = `<span>${fmt(v, m.format)} ${m.unit}</span>`;
+            }
+          } else {
+            oob = (m.min !== null && v < m.min) || (m.max !== null && v > m.max);
+            valDisplay = `<span class="${oob ? 'oob' : ''}">${fmt(v, m.format)} ${m.unit}</span>`;
+          }
         } else {
           valDisplay = '<span class="empty">未填</span>';
         }
@@ -560,19 +576,39 @@ function renderInput() {
   // O/X 類型不在此頁，但目前架構是設備清單即監測項目，沒有 O/X 監測項目
   // O/X 由 GAS 自動依「當天該設備是否有 KEY 任一項」自動填
 
+  const isCumulative = dev.note && dev.note.includes('累計');
   const buf = state.buffer;
   const num = buf === '' ? null : parseFloat(buf);
   const hasMin = dev.min !== null && dev.min !== '';
   const hasMax = dev.max !== null && dev.max !== '';
-  const oob = num !== null && ((hasMin && num < Number(dev.min)) || (hasMax && num > Number(dev.max)));
+
+  const yestVal = state.yesterday[key(dev.code, dev.metric)];
+  const hasYest = yestVal !== undefined && yestVal !== null;
+  const delta = (isCumulative && hasYest && num !== null) ? num - Number(yestVal) : null;
+  const checkVal = isCumulative ? delta : num;
+  const oob = checkVal !== null && ((hasMin && checkVal < Number(dev.min)) || (hasMax && checkVal > Number(dev.max)));
 
   let display;
   let warnLine = '';
   if (buf === '') display = '<span class="num empty">—</span>';
   else {
     display = `<span class="num${oob ? ' oob' : ''}">${buf}</span>`;
-    if (oob) warnLine = `<div class="warn">⚠ 超出標準範圍 ${dev.min ?? '-'}~${dev.max ?? '-'} ${dev.unit}</div>`;
-    else if (hasMin || hasMax) warnLine = `<div class="ok-msg">✓ 在正常範圍內</div>`;
+    if (isCumulative) {
+      if (yestVal === undefined) {
+        warnLine = `<div style="color:#999;font-size:12px;margin-top:6px">讀取昨日讀值中...</div>`;
+      } else if (!hasYest) {
+        warnLine = `<div style="color:#999;font-size:12px;margin-top:6px">昨日無資料，無法計算今日用量</div>`;
+      } else if (oob) {
+        warnLine = `<div class="warn">⚠ 今日用量 ${delta} ${dev.unit}（昨日讀值 ${fmt(yestVal, dev.format)}），超出上限 ${dev.max}</div>`;
+      } else if (hasMin || hasMax) {
+        warnLine = `<div class="ok-msg">✓ 今日用量 ${delta} ${dev.unit}（昨日讀值 ${fmt(yestVal, dev.format)}）在正常範圍</div>`;
+      } else {
+        warnLine = `<div style="color:#666;font-size:12px;margin-top:6px">今日用量：${delta} ${dev.unit}（昨日讀值 ${fmt(yestVal, dev.format)}）</div>`;
+      }
+    } else {
+      if (oob) warnLine = `<div class="warn">⚠ 超出標準範圍 ${dev.min ?? '-'}~${dev.max ?? '-'} ${dev.unit}</div>`;
+      else if (hasMin || hasMax) warnLine = `<div class="ok-msg">✓ 在正常範圍內</div>`;
+    }
   }
 
   const isDecimal = dev.format === '小數1位' || dev.format === '小數2位';
@@ -600,8 +636,13 @@ function renderInput() {
 
   // 範圍提示
   let rangeText = '';
-  if (hasMin || hasMax) rangeText = `<span>標準 <b>${dev.min ?? '-'} ~ ${dev.max ?? '-'}</b> ${dev.unit}</span>`;
-  else rangeText = '<span style="color:#999">未設定標準範圍</span>';
+  if (isCumulative) {
+    if (hasMin || hasMax) rangeText = `<span>日用量上限 <b>${dev.min ?? '-'} ~ ${dev.max ?? '-'}</b> ${dev.unit}</span>`;
+    else rangeText = '<span style="color:#999">累計電表讀值（未設日用量上限）</span>';
+  } else {
+    if (hasMin || hasMax) rangeText = `<span>標準 <b>${dev.min ?? '-'} ~ ${dev.max ?? '-'}</b> ${dev.unit}</span>`;
+    else rangeText = '<span style="color:#999">未設定標準範圍</span>';
+  }
 
   return `
     <div class="page">
@@ -639,13 +680,26 @@ function renderConfirm() {
     if (!dev) return;
     const hasMin = dev.min !== null && dev.min !== '';
     const hasMax = dev.max !== null && dev.max !== '';
-    const oob = (hasMin && v < dev.min) || (hasMax && v > dev.max);
+    const isCum = dev.note && dev.note.includes('累計');
+    let oob = false;
+    let deltaLine = '';
+    if (isCum) {
+      const yv = state.yesterday[key(code, metric)];
+      if (yv !== undefined && yv !== null) {
+        const d = v - Number(yv);
+        oob = (hasMin && d < dev.min) || (hasMax && d > dev.max);
+        deltaLine = `<div style="font-size:11px;color:#888">今日用量 ${d} ${dev.unit}</div>`;
+      }
+    } else {
+      oob = (hasMin && v < dev.min) || (hasMax && v > dev.max);
+    }
     if (oob) oobCount++;
     items += `
       <div class="confirm-item">
         <div>
           <div style="font-size:12px;color:#888">${dev.process} · ${code}</div>
           <div>${dev.metric}</div>
+          ${deltaLine}
         </div>
         <div class="v${oob ? ' oob' : ''}">${fmt(v, dev.format)} ${dev.unit}</div>
       </div>
@@ -804,11 +858,23 @@ function enterProcess(p) {
   render();
 }
 
-function enterInput(globalIdx) {
+async function enterInput(globalIdx) {
   state.itemIdx = globalIdx;
   state.buffer = '';
   state.page = 'input';
   render();
+
+  const dev = state.config.devices[globalIdx];
+  const k = key(dev.code, dev.metric);
+  if (dev.note && dev.note.includes('累計') && state.yesterday[k] === undefined) {
+    try {
+      const r = await apiGet('getYesterday', { date: state.date, code: dev.code, metric: dev.metric });
+      state.yesterday[k] = (r.value !== null && r.value !== undefined) ? r.value : null;
+    } catch(e) {
+      state.yesterday[k] = null;
+    }
+    render();
+  }
 }
 
 function skipToList() {
@@ -962,8 +1028,17 @@ function updateAlerts() {
     if (!dev) return;
     const hasMin = dev.min !== null && dev.min !== '';
     const hasMax = dev.max !== null && dev.max !== '';
-    if ((hasMin && v < dev.min) || (hasMax && v > dev.max)) {
-      state.alerts.push({ code, metric, value: v, min: dev.min, max: dev.max, unit: dev.unit });
+    const isCum = dev.note && dev.note.includes('累計');
+    let checkVal = v;
+    let delta = null;
+    if (isCum) {
+      const yv = state.yesterday[k];
+      if (yv === undefined || yv === null) return;
+      delta = v - Number(yv);
+      checkVal = delta;
+    }
+    if ((hasMin && checkVal < dev.min) || (hasMax && checkVal > dev.max)) {
+      state.alerts.push({ code, metric, value: v, min: dev.min, max: dev.max, unit: dev.unit, delta });
     }
   });
 }
