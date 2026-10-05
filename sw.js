@@ -1,4 +1,4 @@
-const CACHE = 'ehs-v1';
+const CACHE = 'ehs-v1.1.1';
 
 self.addEventListener('install', e => {
   e.waitUntil(

@@ -6,8 +6,11 @@
 <meta name="theme-color" content="#1F3864">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>EHS 抄表 · 員和工業</title>
-<link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22EHS%20%E6%8A%84%E8%A1%A8%22%2C%22short_name%22%3A%22EHS%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%231F3864%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%3Bcharset%3Dutf-8%2C%253Csvg%2520xmlns%253D%2522http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2522%2520viewBox%253D%25220%25200%2520192%2520192%2522%253E%253Crect%2520width%253D%2522192%2522%2520height%253D%2522192%2522%2520rx%253D%252238%2522%2520fill%253D%2522%25231F3864%2522%252F%253E%253Ctext%2520x%253D%252296%2522%2520y%253D%2522120%2522%2520text-anchor%253D%2522middle%2522%2520font-family%253D%2522sans-serif%2522%2520font-size%253D%252272%2522%2520font-weight%253D%2522700%2522%2520fill%253D%2522%2523fff%2522%253EEHS%253C%252Ftext%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<title>員和環保系統</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="員和環保系統">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Microsoft JhengHei',sans-serif;background:#F4F5F7;color:#1A1A1A;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
@@ -154,9 +157,9 @@ input,select,textarea{font:inherit}
   <div class="splash-orb" style="width:300px;height:300px;background:rgba(120,170,255,0.13);top:-80px;left:-80px"></div>
   <div class="splash-orb" style="width:360px;height:360px;background:rgba(60,130,220,0.1);bottom:-120px;right:-100px"></div>
   <div class="splash-logo-box">
-    <div class="splash-logo-text">EHS</div>
+    <img src="icon-192.png" alt="" style="width:100%;height:100%;border-radius:28px;display:block">
   </div>
-  <div class="splash-title">EHS 抄表</div>
+  <div class="splash-title">員和環保系統</div>
   <div class="splash-sub">員和工業 · 平鎮廠</div>
   <div class="splash-bar-wrap"><div class="splash-bar-fill"></div></div>
 </div>
@@ -164,7 +167,7 @@ input,select,textarea{font:inherit}
 <div id="app">
   <div id="topbar" class="topbar">
     <button class="back" id="back-btn" style="display:none">‹ 返回</button>
-    <h1 id="page-title">EHS 抄表</h1>
+    <h1 id="page-title">員和環保系統</h1>
     <div class="right">
       <span class="statusdot" id="net-dot" title="連線狀態"></span>
     </div>
@@ -186,7 +189,7 @@ input,select,textarea{font:inherit}
 // ============================================================
 // 設定 / 全域狀態
 // ============================================================
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const LS = {
   GAS_URL: 'ehs.gas_url',
   CONFIG: 'ehs.config_cache',
@@ -525,7 +528,7 @@ async function loadConfig(forceRefresh) {
 // ============================================================
 function renderTopbar() {
   const titles = {
-    home: 'EHS 抄表',
+    home: '員和環保系統',
     list: state.process ? state.process + ' · 抄表' : '抄表',
     input: '輸入數值',
     ox: '設備狀態',
@@ -1144,7 +1147,7 @@ async function submitReadings() {
 }
 
 function exportConfirmAsText() {
-  let txt = `EHS 抄表 ${state.date}\n`;
+  let txt = `員和環保系統 ${state.date}\n`;
   Object.entries(state.readings).forEach(([k, v]) => {
     const [code, metric] = k.split('||');
     const dev = state.config.devices.find(d => d.code === code && d.metric === metric);
